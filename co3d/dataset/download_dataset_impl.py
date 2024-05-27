@@ -33,31 +33,24 @@ def download_dataset(
     sha256s_file: Optional[str] = None,
 ):
     """
-    Downloads and unpacks the dataset in CO3D format.
+    下载并解压 CO3D 格式的数据集。
 
-    Note: The script will make a folder `<download_folder>/_in_progress`, which
-        stores files whose download is in progress. The folder can be safely deleted
-        the download is finished.
+    将在'<download_folder>/_in_progress'文件夹中存储正在下载的文件，
+    下载完成后，可以安全地删除该文件夹。
 
-    Args:
-        link_list_file: A text file with the list of zip file download links.
-        download_folder: A local target folder for downloading the
-            the dataset files.
-        n_download_workers: The number of parallel workers
-            for downloading the dataset files.
-        n_extract_workers: The number of parallel workers
-            for extracting the dataset files.
-        download_categories: A list of categories to download.
-            If `None`, downloads all.
-        checksum_check: Enable validation of the downloaded file's checksum before
-            extraction.
-        single_sequence_subset: Whether the downloaded dataset is the single-sequence
-            subset of the full dataset.
-        clear_archives_after_unpacking: Delete the unnecessary downloaded archive files
-            after unpacking.
-        skip_downloaded_archives: Skip re-downloading already downloaded archives.
-    """
+    参数详解如下：
+    link_list_file: txt文件,包含下载zip文件的链接列表。 
+    download_folder: 文件下载的本地目标文件夹。 
+    n_download_workers: 下载数据集文件的并行工作线程数量。 
+    n_extract_workers: 解压数据集文件的并行工作线程数量。 
+    download_categories: 要下载的类别列表。
+    checksum_check: 在解压之前，开启下载文件的校验和验证。
+    single_sequence_subset: 是否下载完整数据集的单一序列子集。
+    clear_archives_after_unpacking: 在解压后删除不必要的已下载的压缩文件。 
+    skip_downloaded_archives: 跳过已经下载的压缩文件。 
+    """ 
 
+    
     if checksum_check and not sha256s_file:
         raise ValueError(
             "checksum_check is requested but ground-truth SHA256 file not provided!"
@@ -171,6 +164,17 @@ def build_arg_parser(
     default_link_list_file: str,
     default_sha256_file: str,
 ) -> ArgumentParser:
+
+    """
+    构建用于下载数据集的参数解析器。
+
+    参数详解如下：
+    dataset_name: 数据集名称
+    default_link_list_file: 默认下载文件链接列表
+    default_sha256_file: 默认的SHA256校验文件
+    """
+
+    
     parser = ArgumentParser(description=f"Download the {dataset_name} dataset.")
     parser.add_argument(
         "--download_folder",
@@ -250,6 +254,15 @@ def _unpack_category_file(
     clear_archive: bool,
     link: str,
 ):
+    """
+    解压指定类别的文件
+
+    参数详解如下：
+    download_folder: 文件下载的本地目标文件夹
+    clear_archive: 是否在解压后删除原压缩文件
+    link: 文件链接
+    """
+    
     *_, link_name, url = link
     local_fl = os.path.join(download_folder, link_name)
     print(f"Unpacking dataset file {local_fl} ({link_name}) to {download_folder}.")
@@ -266,6 +279,18 @@ def _download_category_file(
     skip_downloaded_files: bool,
     link: str,
 ):
+    """
+    下载指定类别的文件
+
+    参数详解如下：
+    download_folder: 文件下载的本地目标文件夹
+    checksum_check: 检查SHA256校验和
+    single_sequence_subset: 是否下载完整数据集的单一序列子集
+    sha256s_file: SHA256校验文件
+    skip_downloaded_files: 跳过已经下载的文件
+    link: 文件链接
+    """
+    
     category, link_name, url = link
     local_fl_final = os.path.join(download_folder, link_name)
 
