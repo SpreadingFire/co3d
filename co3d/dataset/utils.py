@@ -1,3 +1,14 @@
+"""
+主要目标：抹除测试集的标签信息
+
+被抹去的信息包括了"fg_probability"（可能是前景概率的意思），
+"image_rgb"（RGB色彩空间的图像数据），
+"depth_map"（深度图，记录了图像中各像素点的深度信息）和"mask_crop"。
+
+redact_eval_frame_data函数是用来将评估所用的帧数据的测试元素（第一张图片）的所有信息抹去的，
+_check_valid_eval_frame_data函数则是用来检查帧数据是否被正确抹去的。
+"""
+
 import torch
 import copy
 from pytorch3d.implicitron.dataset.dataset_base import FrameData
