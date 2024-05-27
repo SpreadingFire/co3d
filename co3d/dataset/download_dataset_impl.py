@@ -1,9 +1,8 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
-# All rights reserved.
-
-# This source code is licensed under the license found in the
-# LICENSE file in the root directory of this source tree.
-
+"""
+这段代码用于下载并解压指定的数据集。以及提供了一些辅助函数。
+这些函数一起工作，可以从网络上下载数据，根据文件的url，然后保存到本地。
+其中，一些选项可以自定义，比如是否验证下载文件的校验和，是否在解压之后删除原文件等。
+"""
 
 import os
 import shutil
