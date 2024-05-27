@@ -1,8 +1,10 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# All rights reserved.
-#
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree.
+ """
+ 看起来，该段数据是一个标准的 CSV 格式，以行为单位记录了 CO3D 数据集各子集的各种评估指标，包括每个类别的 PSNR（峰值信噪比）、前景的 PSNR、
+ 全图像的 PSNR、前景的深度绝对误差以及 IoU（交并比）。每个在”Category“列中列出的不同类别都有其相应的评估结果。
+在这段数据中，”fewview_dev“、"fewview_test"、"manyview_dev" 等都代表不同的数据子集。
+然而，对于每个子集，数据还记录了所有类别的评估指标的均值（以 MEAN 标记）。
+这些指标的值可以被用于评估和比较不同的 3D 物体重建模型的表现，以便于进一步的模型优化和改进。
+ """
 
 
 from io import StringIO
