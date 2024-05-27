@@ -1,8 +1,17 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# All rights reserved.
-#
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree.
+"""
+这段代码中主要定义了一些函数以计算预测值和目标值之间的评估指标。它具备评估全景深度图像（RGB-D）和视觉背景建模（Foreground）等任务的能力。
+eval_one 函数和 eval_one_rgbda 函数：给定预测的 RGB-D 帧（包括 RGB 图像，深度图，和前景掩码）以及目标帧（同样包括 RGB 图像，深度图，和前景掩码），
+它会计算预测和目标之间的一系列评估指标。这些指标包括前景的 PSNR、整张图片的 PSNR、前景掩码的 PSNR、前景深度的平均绝对误差以及前景掩码之间的 IOU。
+
+计算误差的函数，如 calc_psnr、calc_mse 计算预测和目标之间的峰值信噪比和均方误差。rgb_l1 计算预测颜色和真实颜色之间的平均绝对误差。
+calc_mse_abs_depth 计算预测深度和真实深度之间的均方误差以及平均绝对误差。
+
+calc_iou 函数：计算预测前景掩码和真实前景掩码之间的交叉并集比率（Intersection over Union)，这是常用的评估前景分割质量的指标。
+
+_get_bbox_from_mask 函数：使用前景掩码推算出前景物体的边界框。对于前景非常小的情况，会逐渐降低掩码的阈值，直到有足够数量的像素被认定为前景。
+
+Timer 类：一个用于计算代码运行时间的辅助类。调用这个类的对象时，会在开始时记录当前时间，在结束时计算过去的时间。
+"""
 
 import math
 import numpy as np
