@@ -1,10 +1,4 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
-# All rights reserved.
-
-# This source code is licensed under the license found in the
-# LICENSE file in the root directory of this source tree.
-
-
+# 计算并校验下载的数据集文件的SHA256哈希值，来保证数据集文件的完整性和正确性
 import os
 import glob
 import argparse
@@ -15,11 +9,11 @@ from typing import Optional
 from multiprocessing import Pool
 from tqdm import tqdm
 
-
+# 定义默认的哈希值文件路径
 DEFAULT_SHA256S_FILE = os.path.join(__file__.rsplit(os.sep, 2)[0], "co3d_sha256.json")
 BLOCKSIZE = 65536
 
-
+# 定一个主函数
 def main(
     download_folder: str,
     sha256s_file: str,
@@ -27,17 +21,21 @@ def main(
     n_sha256_workers: int = 4,
     single_sequence_subset: bool = False,
 ):
+    # 检查哈希值文件是否存在
     if not os.path.isfile(sha256s_file):
         raise ValueError(f"The SHA256 file does not exist ({sha256s_file}).")
-
+    
+    # 获取哈希值
     expected_sha256s = get_expected_sha256s(
         sha256s_file=sha256s_file,
         single_sequence_subset=single_sequence_subset,
     )
 
+    # 找到所有的zip文件
     zipfiles = sorted(glob.glob(os.path.join(download_folder, "*.zip")))
     print(f"Extracting SHA256 hashes for {len(zipfiles)} files in {download_folder}.")
     extracted_sha256s_list = []
+    # 使用多进程计算哈希值
     with Pool(processes=n_sha256_workers) as sha_pool:
         for extracted_hash in tqdm(
             sha_pool.imap(_sha256_file_and_print, zipfiles),
@@ -50,13 +48,14 @@ def main(
         zip([os.path.split(z)[-1] for z in zipfiles], extracted_sha256s_list)
     )
 
+    # 检查并保存哈希值
     if dump:
         print(extracted_sha256s)
         with open(sha256s_file, "w") as f:
             json.dump(extracted_sha256s, f, indent=2)
 
-    
     missing_keys, invalid_keys = [], []
+    # 检查文件的哈希值是否匹配
     for k in expected_sha256s.keys():
         if k not in extracted_sha256s:
             print(f"{k} missing!")
@@ -74,7 +73,7 @@ def main(
             + f" missing files: {str(missing_keys)}."
         )
 
-
+# 从哈希文件中获取哈希值
 def get_expected_sha256s(
     sha256s_file: str,
     single_sequence_subset: bool = False,
@@ -86,7 +85,7 @@ def get_expected_sha256s(
     else:
         return expected_sha256s["full"]
 
-
+# 检查一个文件的哈希值
 def check_co3d_sha256(
     path: str,
     sha256s_file: str,
@@ -108,7 +107,7 @@ def check_co3d_sha256(
     else:
         return extracted_hash == expected_sha256s[zipname]
 
-
+# 计算一个文件的哈希值
 def sha256_file(path: str):
     sha256_hash = hashlib.sha256()
     with open(path, "rb") as f:
@@ -120,14 +119,13 @@ def sha256_file(path: str):
     # print(f"{digest_} {path}")
     return digest_
 
-
+# 计算和打印一个文件的哈希值
 def _sha256_file_and_print(path: str):
     digest_ = sha256_file(path)
     print(f"{path}: {digest_}")
     return digest_
 
-
-
+# 接收并处理用户的输入
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Check SHA256 hashes of the CO3D dataset."
@@ -143,6 +141,7 @@ if __name__ == "__main__":
         help="A local target folder for downloading the the dataset files.",
         default=DEFAULT_SHA256S_FILE,
     )
+    # 定义一些用户可以设置的参数
     parser.add_argument(
         "--num_workers",
         type=int,
@@ -168,4 +167,4 @@ if __name__ == "__main__":
         n_sha256_workers=int(args.num_workers),
         single_sequence_subset=bool(args.single_sequence_subset),
         sha256s_file=str(args.sha256s_file),
-    )
+    ) 
