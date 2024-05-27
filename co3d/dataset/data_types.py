@@ -170,62 +170,56 @@ def _dataclass_list_from_dict_list(dlist, typeannot):
     """
     cls = get_origin(typeannot) or typeannot
 
-    if typeannot is Any:
-        return dlist
-    if all(obj is None for obj in dlist):  # 第一递归基础：所有None节点
-        return dlist
-    if any(obj is None for obj in dlist):
-        # 过滤掉 None 并递归处理结果列表
-        idx_notnone = [(i, obj) for i, obj in enumerate(dlist) if obj is not None]
-        idx, notnone = zip(*idx_notnone)
-        converted = _dataclass_list_from_dict_list(notnone, typeannot)
-        res = [None] * len(dlist)
-        for i, obj in zip(idx, converted):
-            res[i] = obj
-        return res
+if typeannot is Any: # 如果目标类型是任何类型，那么直接返回
+    return dlist
+if all(obj is None for obj in dlist):  # 如果列表里的所有元素都是 None，同样直接返回
+    return dlist
+if any(obj is None for obj in dlist): # 如果列表里存在 None 元素
+    # 过滤掉 None 元素并递归调用自身来处理剩余的元素
+    idx_notnone = [(i, obj) for i, obj in enumerate(dlist) if obj is not None]
+    idx, notnone = zip(*idx_notnone)
+    converted = _dataclass_list_from_dict_list(notnone, typeannot)
+    res = [None] * len(dlist)
+    for i, obj in zip(idx, converted):
+        res[i] = obj
+    return res
 
-    is_optional, contained_type = _resolve_optional(typeannot)
-    if is_optional:
-        return _dataclass_list_from_dict_list(dlist, contained_type)
+is_optional, contained_type = _resolve_optional(typeannot) # 解析 typeannot 是否可选类型
+if is_optional:
+    return _dataclass_list_from_dict_list(dlist, contained_type) # 如果是，则处理具体的类型
 
-    # 根据提供的注解类型进行分派转换
-    if issubclass(cls, tuple) and hasattr(cls, "_fields"):  # namedtuple
-        types = cls._field_types.values()
-        dlist_T = zip(*dlist)
-        res_T = [
-            _dataclass_list_from_dict_list(key_list, tp)
-            for key_list, tp in zip(dlist_T, types)
-        ]
-        return [cls(*converted_as_tuple) for converted_as_tuple in zip(*res_T)]
-    elif issubclass(cls, (list, tuple)):
-        types = get_args(typeannot)
-        if len(types) == 1:  # 可能是 List；为所有项复制
-            types = types * len(dlist[0])
-        dlist_T = zip(*dlist)
-        res_T = (
-            _dataclass_list_from_dict_list(pos_list, tp)
-            for pos_list, tp in zip(dlist_T, types)
-        )
-        if issubclass(cls, tuple):
-            return list(zip(*res_T))
-        else:
-            return [cls(converted_as_tuple) for converted_as_tuple in zip(*res_T)]
-    elif issubclass(cls, dict):
-        key_t, val_t = get_args(typeannot)
-        all_keys_res = _dataclass_list_from_dict_list(
-            [k for obj in dlist for k in obj.keys()], key_t
-        )
-        all_vals_res = _dataclass_list_from_dict_list(
-            [v for obj in dlist for v in obj.values()], val_t
-        )
-        indices = np.cumsum([len(obj) for obj in dlist])
-        assert indices[-1] == len(all_keys_res)
+# 根据提供的 typeannot 的实际类型，进行对应的转换
+if issubclass(cls, tuple) and hasattr(cls, "_fields"):  # namedtuple
+    # 如果 cls 是一个 namedtuple，则会进入这个分支
+    types = cls._field_types.values()
+    dlist_T = zip(*dlist)
+    res_T = [
+        _dataclass_list_from_dict_list(key_list, tp)
+        for key_list, tp in zip(dlist_T, types)
+    ]
+    return [cls(*converted_as_tuple) for converted_as_tuple in zip(*res_T)]
+elif issubclass(cls, (list, tuple)): # 如果 cls 是列表或者元组
+    types = get_args(typeannot)
+    if len(types) == 1:  # 可能是 List；为所有项复制
+        types = types * len(dlist[0])
+    dlist_T = zip(*dlist)
+    res_T = (_dataclass_list_from_dict_list(pos_list, tp) for pos_list, tp in zip(dlist_T, types))
+    if issubclass(cls, tuple):
+        return list(zip(*res_T))
+    else:
+        return [cls(converted_as_tuple) for converted_as_tuple in zip(*res_T)]
+elif issubclass(cls, dict): # 如果 cls 是字典
+    key_t, val_t = get_args(typeannot)
+    all_keys_res = _dataclass_list_from_dict_list([k for obj in dlist for k in obj.keys()], key_t)
+    all_vals_res = _dataclass_list_from_dict_list([v for obj in dlist for v in obj.values()], val_t)
+    indices = np.cumsum([len(obj) for obj in dlist])
+    assert indices[-1] == len(all_keys_res)
 
-        keys = np.split(list(all_keys_res), indices[:-1])
-        all_vals_res_iter = iter(all_vals_res)
-        return [cls(zip(k, all_vals_res_iter)) for k in keys]
-    elif not dataclasses.is_dataclass(typeannot):
-        return dlist
+    keys = np.split(list(all_keys_res), indices[:-1])
+    all_vals_res_iter = iter(all_vals_res)
+    return [cls(zip(k, all_vals_res_iter)) for k in keys]
+elif not dataclasses.is_dataclass(typeannot):
+    return dlist # 如果都不是，直接返回原列表
 
     assert dataclasses.is_dataclass(cls)
     fieldtypes = {
