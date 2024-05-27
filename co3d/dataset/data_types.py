@@ -1,8 +1,12 @@
-# 版权所有 (c) Meta Platforms Inc. 和其附属公司。
-# 保留所有权利。
-#
-# 本源代码依据BSD风格的许可协议进行授权，详细信息请参见
-# 根目录中的 LICENSE 文件。
+ """
+代码目的
+    定义数据结构：代码使用Python的dataclass模块定义了多种数据结构，这些数据结构用于表示图像、深度、遮罩、视点等注解信息。
+    数据的序列化和反序列化：提供了函数将这些数据类对象序列化为JSON格式（包括压缩格式），以及从JSON格式反序列化回数据类对象。
+                          这对于数据的存储和加载非常有用。
+
+  """
+
+
 
 import sys
 import dataclasses
@@ -47,7 +51,20 @@ class MaskAnnotation:
     path: str  # 存储 (Prob(fg | pixel) * 255) 的png文件路径
     mass: Optional[float] = None  # 遮罩中的像素数量；sum(Prob(fg | pixel))
 
+
+
 # 定义视点注解的数据类
+ """
+它为记录和处理视点（即摄像机或者观察者的视点）相关的信息提供了一种方便的数据结构。
+这个数据类具有以下的属性：
+"R"：为一个3x3的矩阵，代表了旋转向量。在这里，它将世界坐标系下的坐标（X_world）旋转到摄像机坐标系下的坐标（X_cam），
+     即X_cam = X_world @ R + T，这是一个典型的坐标变换公式。
+"T"：为一个平移向量，表示了世界坐标系原点到摄像机坐标系原点的位移。
+"focal_length"：是一个元组，含有两个浮点数，它们分别表示了摄像机的水平焦距和垂直焦距。
+"principal_point"：也是一个元组，含有两个浮点数，它们表示了摄像机的主点在水平和垂直方向上的坐标。
+"intrinsics_format"：这是一个字符串，定义了焦距和主点所在的坐标系统。在这里，默认值为"ndc_norm_image_bounds"，
+                     表示焦距和主点在被归一化设备坐标（Normalized Device Coordinates, NDC）系统里。
+ """
 @dataclass
 class ViewpointAnnotation:
     R: Tuple[TF3, TF3, TF3]  # 右乘 (PyTorch3D) 格式。 X_cam = X_world @ R + T
@@ -131,6 +148,11 @@ def load_dataclass(f: IO, cls: Type[_X], binary: bool = False) -> _X:
     return res
 
 # 向量化版本的 `_dataclass_from_dict`
+ """
+ 这里的向量化是指这个函数处理的是一个"列表"的数据，通过这个函数，可以同一时间将多个数据（每个数据都是字典格式）反序列化成对应的数据类对象，
+ 而不是只处理一个数据。
+  """
+
 def _dataclass_list_from_dict_list(dlist, typeannot):
     """
     `_dataclass_from_dict` 的向量化版本。
