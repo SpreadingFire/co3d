@@ -325,6 +325,13 @@ def _download_category_file(
 
 
 def _download_metadata_file(download_folder: str, link: str):
+    """
+    下载数据集的元数据文件
+
+    参数详解如下：
+    download_folder: 文件下载的本地目标文件夹
+    link: 文件链接
+    """
     local_fl = os.path.join(download_folder, link[0])
     # remove the singlesequence postfix in case we are downloading the s.s. subset
     local_fl = local_fl.replace("_singlesequence", "")
@@ -333,6 +340,14 @@ def _download_metadata_file(download_folder: str, link: str):
 
 
 def _download_with_progress_bar(url: str, fname: str, filename: str):
+    """
+    展示下载进度条的函数
+
+    参数详解如下：
+    url: 下载链接
+    fname: 文件在本地的保存名称
+    filename: 文件名称
+    """
     # taken from https://stackoverflow.com/a/62113293/986477
     resp = requests.get(url, stream=True)
     print(url)
