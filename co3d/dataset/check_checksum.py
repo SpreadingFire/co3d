@@ -21,8 +21,12 @@ BLOCKSIZE = 65536
 # 定一个主函数
 def main(
     download_folder: str,
+
+    # 安全哈希算法（SHA），哈希值长度256位
     sha256s_file: str,
     dump: bool = False,
+
+    # 并行处理的线程数量
     n_sha256_workers: int = 4,
     single_sequence_subset: bool = False,
 ):
