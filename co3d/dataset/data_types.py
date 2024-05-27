@@ -1,8 +1,8 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# All rights reserved.
+# 版权所有 (c) Meta Platforms Inc. 和其附属公司。
+# 保留所有权利。
 #
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree.
+# 本源代码依据BSD风格的许可协议进行授权，详细信息请参见
+# 根目录中的 LICENSE 文件。
 
 import sys
 import dataclasses
@@ -13,141 +13,108 @@ from typing import Any, cast, Dict, IO, Optional, Tuple, Type, TypeVar, Union
 
 import numpy as np
 
-
+# 根据Python版本导入相应的模块
 if sys.version_info >= (3, 8, 0):
     from typing import get_args, get_origin
 elif sys.version_info >= (3, 7, 0):
-
     def get_origin(cls):  # pragma: no cover
         return getattr(cls, "__origin__", None)
 
     def get_args(cls):  # pragma: no cover
         return getattr(cls, "__args__", None)
-
-
 else:
-    raise ImportError("This module requires Python 3.7+")
-
+    raise ImportError("本模块需要Python 3.7+版本")
 
 _X = TypeVar("_X")
-
 TF3 = Tuple[float, float, float]
 
-
+# 定义图像注解的数据类
 @dataclass
 class ImageAnnotation:
-    # path to jpg file, relative w.r.t. dataset_root
-    path: str
-    # H x W
-    size: Tuple[int, int]  # TODO: rename size_hw?
+    path: str  # 相对于数据集根目录的jpg文件路径
+    size: Tuple[int, int]  # 图像的高度和宽度
 
-
+# 定义深度注解的数据类
 @dataclass
 class DepthAnnotation:
-    # path to png file, relative w.r.t. dataset_root, storing `depth / scale_adjustment`
-    path: str
-    # a factor to convert png values to actual depth: `depth = png * scale_adjustment`
-    scale_adjustment: float
-    # path to png file, relative w.r.t. dataset_root, storing binary `depth` mask
-    mask_path: Optional[str]
+    path: str  # 相对于数据集根目录的png文件路径，存储 'depth/scale_adjustment'
+    scale_adjustment: float  # 一个将png值转换为实际深度的因子：‘depth=png*scale_adjustment’
+    mask_path: Optional[str]  # 相对于数据集根目录的png文件路径，存储二元‘depth’ mask
 
-
+# 定义遮罩注解的数据类
 @dataclass
 class MaskAnnotation:
-    # path to png file storing (Prob(fg | pixel) * 255)
-    path: str
-    # (soft) number of pixels in the mask; sum(Prob(fg | pixel))
-    mass: Optional[float] = None
+    path: str  # 存储 (Prob(fg | pixel) * 255) 的png文件路径
+    mass: Optional[float] = None  # 遮罩中的像素数量；sum(Prob(fg | pixel))
 
-
+# 定义视点注解的数据类
 @dataclass
 class ViewpointAnnotation:
-    # In right-multiply (PyTorch3D) format. X_cam = X_world @ R + T
-    R: Tuple[TF3, TF3, TF3]
-    T: TF3
+    R: Tuple[TF3, TF3, TF3]  # 右乘 (PyTorch3D) 格式。 X_cam = X_world @ R + T
+    T: TF3  # 平移向量
+    focal_length: Tuple[float, float]  # 焦距
+    principal_point: Tuple[float, float]  # 主点
+    intrinsics_format: str = "ndc_norm_image_bounds"  # 定义焦距和主点所在的坐标系统
 
-    focal_length: Tuple[float, float]
-    principal_point: Tuple[float, float]
-
-    intrinsics_format: str = "ndc_norm_image_bounds"
-    # Defines the co-ordinate system where focal_length and principal_point live.
-    # Possible values: ndc_isotropic | ndc_norm_image_bounds (default)
-    # ndc_norm_image_bounds: legacy PyTorch3D NDC format, where image boundaries
-    #     correspond to [-1, 1] x [-1, 1], and the scale along x and y may differ
-    # ndc_isotropic: PyTorch3D 0.5+ NDC convention where the shorter side has
-    #     the range [-1, 1], and the longer one has the range [-s, s]; s >= 1,
-    #     where s is the aspect ratio. The scale is same along x and y.
-
-
+# 定义帧注解的数据类
 @dataclass
 class FrameAnnotation:
-    """A dataclass used to load annotations from json."""
+    """用于从json加载注解的数据类。"""
+    sequence_name: str  # 用于连接 `SequenceAnnotation`
+    frame_number: int  # 序列中的0基连续帧号
+    frame_timestamp: float  # 从视频开始的时间戳（秒）
+    image: ImageAnnotation  # 图像注解
+    depth: Optional[DepthAnnotation] = None  # 深度注解
+    mask: Optional[MaskAnnotation] = None  # 遮罩注解
+    viewpoint: Optional[ViewpointAnnotation] = None  # 视点注解
+    meta: Optional[Dict[str, Any]] = None  # 其他元数据
 
-    # can be used to join with `SequenceAnnotation`
-    sequence_name: str
-    # 0-based, continuous frame number within sequence
-    frame_number: int
-    # timestamp in seconds from the video start
-    frame_timestamp: float
-
-    image: ImageAnnotation
-    depth: Optional[DepthAnnotation] = None
-    mask: Optional[MaskAnnotation] = None
-    viewpoint: Optional[ViewpointAnnotation] = None
-    meta: Optional[Dict[str, Any]] = None
-
-
+# 定义点云注解的数据类
 @dataclass
 class PointCloudAnnotation:
-    # path to ply file with points only, relative w.r.t. dataset_root
-    path: str
-    # the bigger the better
-    quality_score: float
-    n_points: Optional[int]
+    path: str  # 相对于数据集根目录的ply文件路径，只包含点
+    quality_score: float  # 质量评分，越高越好
+    n_points: Optional[int]  # 点的数量
 
-
+# 定义视频注解的数据类
 @dataclass
 class VideoAnnotation:
-    # path to the original video file, relative w.r.t. dataset_root
-    path: str
-    # length of the video in seconds
-    length: float
+    path: str  # 相对于数据集根目录的原始视频文件路径
+    length: float  # 视频长度（秒）
 
-
+# 定义序列注解的数据类
 @dataclass
 class SequenceAnnotation:
-    sequence_name: str
-    category: str
-    video: Optional[VideoAnnotation] = None
-    point_cloud: Optional[PointCloudAnnotation] = None
-    # the bigger the better
-    viewpoint_quality_score: Optional[float] = None
+    sequence_name: str  # 序列名称
+    category: str  # 类别
+    video: Optional[VideoAnnotation] = None  # 视频注解
+    point_cloud: Optional[PointCloudAnnotation] = None  # 点云注解
+    viewpoint_quality_score: Optional[float] = None  # 视点质量评分，越高越好
 
-
+# 将数据类对象转储为json
 def dump_dataclass(obj: Any, f: IO, binary: bool = False) -> None:
     """
-    Args:
-        f: Either a path to a file, or a file opened for writing.
-        obj: A @dataclass or collection hierarchy including dataclasses.
-        binary: Set to True if `f` is a file handle, else False.
+    参数:
+        f: 文件路径或已打开的文件对象。
+        obj: 一个 @dataclass 或包含数据类的集合层次结构。
+        binary: 如果 `f` 是文件句柄则设置为 True，否则为 False。
     """
     if binary:
         f.write(json.dumps(_asdict_rec(obj)).encode("utf8"))
     else:
         json.dump(_asdict_rec(obj), f)
 
-
+# 从json加载到数据类对象
 def load_dataclass(f: IO, cls: Type[_X], binary: bool = False) -> _X:
     """
-    Loads to a @dataclass or collection hierarchy including dataclasses
-    from a json recursively.
-    Call it like load_dataclass(f, typing.List[FrameAnnotationAnnotation]).
-    raises KeyError if json has keys not mapping to the dataclass fields.
+    从json递归加载到 @dataclass 或包含数据类的集合层次结构。
+    可以像 `load_dataclass(f, typing.List[FrameAnnotationAnnotation])` 一样调用它。
+    如果json包含与数据类字段不对应的键则引发 KeyError。
 
-    Args:
-        f: Either a path to a file, or a file opened for writing.
-        cls: The class of the loaded dataclass.
-        binary: Set to True if `f` is a file handle, else False.
+    参数:
+        f: 文件路径或已打开的文件对象。
+        cls: 加载的数据类的类。
+        binary: 如果 `f` 是文件句柄则设置为 True，否则为 False。
     """
     if binary:
         asdict = json.loads(f.read().decode("utf8"))
@@ -155,7 +122,7 @@ def load_dataclass(f: IO, cls: Type[_X], binary: bool = False) -> _X:
         asdict = json.load(f)
 
     if isinstance(asdict, list):
-        # in the list case, run a faster "vectorized" version
+        # 在列表情况下运行更快的“向量化”版本
         cls = get_args(cls)[0]
         res = list(_dataclass_list_from_dict_list(asdict, cls))
     else:
@@ -163,33 +130,30 @@ def load_dataclass(f: IO, cls: Type[_X], binary: bool = False) -> _X:
 
     return res
 
-
+# 向量化版本的 `_dataclass_from_dict`
 def _dataclass_list_from_dict_list(dlist, typeannot):
     """
-    Vectorised version of `_dataclass_from_dict`.
-    The output should be equivalent to
-    `[_dataclass_from_dict(d, typeannot) for d in dlist]`.
+    `_dataclass_from_dict` 的向量化版本。
+    输出应等同于 `[_dataclass_from_dict(d, typeannot) for d in dlist]`。
 
-    Args:
-        dlist: list of objects to convert.
-        typeannot: type of each of those objects.
-    Returns:
-        iterator or list over converted objects of the same length as `dlist`.
+    参数:
+        dlist: 要转换的对象列表。
+        typeannot: 这些对象的类型。
+    返回:
+        迭代器或转换对象的列表，与 `dlist` 长度相同。
 
-    Raises:
-        ValueError: it assumes the objects have None's in consistent places across
-            objects, otherwise it would ignore some values. This generally holds for
-            auto-generated annotations, but otherwise use `_dataclass_from_dict`.
+    引发:
+        ValueError: 假设对象在一致的位置有 None，否则会忽略一些值。
+        这通常适用于自动生成的注解，但否则使用 `_dataclass_from_dict`。
     """
-
     cls = get_origin(typeannot) or typeannot
 
     if typeannot is Any:
         return dlist
-    if all(obj is None for obj in dlist):  # 1st recursion base: all None nodes
+    if all(obj is None for obj in dlist):  # 第一递归基础：所有None节点
         return dlist
     if any(obj is None for obj in dlist):
-        # filter out Nones and recurse on the resulting list
+        # 过滤掉 None 并递归处理结果列表
         idx_notnone = [(i, obj) for i, obj in enumerate(dlist) if obj is not None]
         idx, notnone = zip(*idx_notnone)
         converted = _dataclass_list_from_dict_list(notnone, typeannot)
@@ -202,9 +166,8 @@ def _dataclass_list_from_dict_list(dlist, typeannot):
     if is_optional:
         return _dataclass_list_from_dict_list(dlist, contained_type)
 
-    # otherwise, we dispatch by the type of the provided annotation to convert to
+    # 根据提供的注解类型进行分派转换
     if issubclass(cls, tuple) and hasattr(cls, "_fields"):  # namedtuple
-        # For namedtuple, call the function recursively on the lists of corresponding keys
         types = cls._field_types.values()
         dlist_T = zip(*dlist)
         res_T = [
@@ -213,9 +176,8 @@ def _dataclass_list_from_dict_list(dlist, typeannot):
         ]
         return [cls(*converted_as_tuple) for converted_as_tuple in zip(*res_T)]
     elif issubclass(cls, (list, tuple)):
-        # For list/tuple, call the function recursively on the lists of corresponding positions
         types = get_args(typeannot)
-        if len(types) == 1:  # probably List; replicate for all items
+        if len(types) == 1:  # 可能是 List；为所有项复制
             types = types * len(dlist[0])
         dlist_T = zip(*dlist)
         res_T = (
@@ -227,33 +189,28 @@ def _dataclass_list_from_dict_list(dlist, typeannot):
         else:
             return [cls(converted_as_tuple) for converted_as_tuple in zip(*res_T)]
     elif issubclass(cls, dict):
-        # For the dictionary, call the function recursively on concatenated keys and vertices
         key_t, val_t = get_args(typeannot)
         all_keys_res = _dataclass_list_from_dict_list(
             [k for obj in dlist for k in obj.keys()], key_t
         )
         all_vals_res = _dataclass_list_from_dict_list(
-            [k for obj in dlist for k in obj.values()], val_t
+            [v for obj in dlist for v in obj.values()], val_t
         )
         indices = np.cumsum([len(obj) for obj in dlist])
         assert indices[-1] == len(all_keys_res)
 
         keys = np.split(list(all_keys_res), indices[:-1])
-        # vals = np.split(all_vals_res, indices[:-1])
         all_vals_res_iter = iter(all_vals_res)
         return [cls(zip(k, all_vals_res_iter)) for k in keys]
     elif not dataclasses.is_dataclass(typeannot):
         return dlist
 
-    # dataclass node: 2nd recursion base; call the function recursively on the lists
-    # of the corresponding fields
     assert dataclasses.is_dataclass(cls)
     fieldtypes = {
         f.name: (_unwrap_type(f.type), _get_dataclass_field_default(f))
         for f in dataclasses.fields(typeannot)
     }
 
-    # NOTE the default object is shared here
     key_lists = (
         _dataclass_list_from_dict_list([obj.get(k, default) for obj in dlist], type_)
         for k, (type_, default) in fieldtypes.items()
@@ -261,13 +218,12 @@ def _dataclass_list_from_dict_list(dlist, typeannot):
     transposed = zip(*key_lists)
     return [cls(*vals_as_tuple) for vals_as_tuple in transposed]
 
-
+# 从字典中生成数据类对象
 def _dataclass_from_dict(d, typeannot):
     if d is None or typeannot is Any:
         return d
     is_optional, contained_type = _resolve_optional(typeannot)
     if is_optional:
-        # an Optional not set to None, just use the contents of the Optional.
         return _dataclass_from_dict(d, contained_type)
 
     cls = get_origin(typeannot) or typeannot
@@ -276,7 +232,7 @@ def _dataclass_from_dict(d, typeannot):
         return cls(*[_dataclass_from_dict(v, tp) for v, tp in zip(d, types)])
     elif issubclass(cls, (list, tuple)):
         types = get_args(typeannot)
-        if len(types) == 1:  # probably List; replicate for all items
+        if len(types) == 1:  # 可能是 List；为所有项复制
             types = types * len(d)
         return cls(_dataclass_from_dict(v, tp) for v, tp in zip(d, types))
     elif issubclass(cls, dict):
@@ -292,61 +248,57 @@ def _dataclass_from_dict(d, typeannot):
     fieldtypes = {f.name: _unwrap_type(f.type) for f in dataclasses.fields(typeannot)}
     return cls(**{k: _dataclass_from_dict(v, fieldtypes[k]) for k, v in d.items()})
 
-
+# 解除类型包装
 def _unwrap_type(tp):
-    # strips Optional wrapper, if any
     if get_origin(tp) is Union:
         args = get_args(tp)
         if len(args) == 2 and any(a is type(None) for a in args):  # noqa: E721
-            # this is typing.Optional
             return args[0] if args[1] is type(None) else args[1]  # noqa: E721
     return tp
 
-
+# 获取数据类字段的默认值
 def _get_dataclass_field_default(field: Field) -> Any:
     if field.default_factory is not MISSING:
-        # pyre-fixme[29]: `Union[dataclasses._MISSING_TYPE,
-        #  dataclasses._DefaultFactory[typing.Any]]` is not a function.
         return field.default_factory()
     elif field.default is not MISSING:
         return field.default
     else:
         return None
 
-
+# 递归地将数据类对象转换为字典
 def _asdict_rec(obj):
     return dataclasses._asdict_inner(obj, dict)
 
-
+# 将数据类对象转储为压缩的json文件
 def dump_dataclass_jgzip(outfile: str, obj: Any) -> None:
     """
-    Dumps obj to a gzipped json outfile.
+    将对象转储到gzipped json文件中。
 
-    Args:
-        obj: A @dataclass or collection hiererchy including dataclasses.
-        outfile: The path to the output file.
+    参数:
+        obj: 一个 @dataclass 或包含数据类的集合层次结构。
+        outfile: 输出文件的路径。
     """
     with gzip.GzipFile(outfile, "wb") as f:
         dump_dataclass(obj, cast(IO, f), binary=True)
 
-
+# 从压缩的json文件中加载数据类对象
 def load_dataclass_jgzip(outfile, cls):
     """
-    Loads a dataclass from a gzipped json outfile.
+    从gzipped json文件中加载数据类。
 
-    Args:
-        outfile: The path to the loaded file.
-        cls: The type annotation of the loaded dataclass.
+    参数:
+        outfile: 加载文件的路径。
+        cls: 加载的数据类的类型注解。
 
-    Returns:
-        loaded_dataclass: The loaded dataclass.
+    返回:
+        加载的数据类对象。
     """
     with gzip.GzipFile(outfile, "rb") as f:
         return load_dataclass(cast(IO, f), cls, binary=True)
 
-
+# 解析可选类型
 def _resolve_optional(type_: Any) -> Tuple[bool, Any]:
-    """Check whether `type_` is equivalent to `typing.Optional[T]` for some T."""
+    """检查 `type_` 是否等价于 `typing.Optional[T]`。"""
     if get_origin(type_) is Union:
         args = get_args(type_)
         if len(args) == 2 and args[1] == type(None):  # noqa E721
