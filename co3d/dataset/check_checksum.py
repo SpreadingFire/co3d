@@ -10,7 +10,12 @@ from multiprocessing import Pool
 from tqdm import tqdm
 
 # 定义默认的哈希值文件路径
+
+# 使用rsplit，从__file__字符串的尾部开始分割，最多分割两次，取第一个部分
 DEFAULT_SHA256S_FILE = os.path.join(__file__.rsplit(os.sep, 2)[0], "co3d_sha256.json")
+
+# 每次读取的文件块的大小
+# 提高哈希计算的效率
 BLOCKSIZE = 65536
 
 # 定一个主函数
